@@ -11,7 +11,7 @@
 
 #ifdef CONFIG_PROSPECTOR_CUSTOM_IDLE_FEATURE
 #include "idle_monitor.h"
-#include "golden_forest.h"
+#include "night.h"
 #include <brightness.h>
 
 enum custom_idle_state {
@@ -54,7 +54,7 @@ static void screensaver_show(void) {
     lv_obj_clear_flag(screensaver_overlay, LV_OBJ_FLAG_HIDDEN);
 
     /* Gentle zoom: slowly scale from 1.0x to ~1.09x and back */
-    lv_image_set_pivot(screensaver_img, GOLDEN_FOREST_W / 2, GOLDEN_FOREST_H / 2);
+    lv_image_set_pivot(screensaver_img, NIGHT_W / 2, NIGHT_H / 2);
 
     lv_anim_t anim;
     lv_anim_init(&anim);
@@ -147,7 +147,7 @@ lv_obj_t *zmk_display_status_screen() {
     lv_obj_clear_flag(screensaver_overlay, LV_OBJ_FLAG_SCROLLABLE);
 
     screensaver_img = lv_image_create(screensaver_overlay);
-    lv_image_set_src(screensaver_img, &golden_forest_img);
+    lv_image_set_src(screensaver_img, &night_img);
     lv_obj_set_pos(screensaver_img, 0, 0);
 
     screensaver_hide();
