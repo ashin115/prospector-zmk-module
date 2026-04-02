@@ -25,7 +25,7 @@ static lv_obj_t *screensaver_img;
 static lv_timer_t *idle_timer;
 static enum custom_idle_state idle_state = CUSTOM_IDLE_ACTIVE;
 
-#define CUSTOM_SCREEN_WIDTH 260
+#define CUSTOM_SCREEN_WIDTH 280
 #define CUSTOM_SCREEN_HEIGHT 240
 #define IDLE_TIMER_PERIOD_MS 100
 #define CUSTOM_DIM_TIMEOUT_MS (CONFIG_PROSPECTOR_CUSTOM_IDLE_DIM_TIMEOUT_SEC * 1000U)
@@ -39,12 +39,33 @@ static struct zmk_widget_battery_circles battery_circles_widget;
 static struct zmk_widget_output output_widget;
 
 #ifdef CONFIG_PROSPECTOR_CUSTOM_IDLE_FEATURE
+static void screensaver_zoom_cb(void *var, int32_t value) {
+    lv_image_set_scale((lv_obj_t *)var, (uint16_t)value);
+}
+
 static void screensaver_hide(void) {
+    lv_anim_del(screensaver_img, screensaver_zoom_cb);
+    lv_image_set_scale(screensaver_img, 256);
     lv_obj_add_flag(screensaver_overlay, LV_OBJ_FLAG_HIDDEN);
 }
 
 static void screensaver_show(void) {
+    lv_obj_set_pos(screensaver_img, 0, 0);
     lv_obj_clear_flag(screensaver_overlay, LV_OBJ_FLAG_HIDDEN);
+
+    /* Gentle zoom: slowly scale from 1.0x to ~1.09x and back */
+    lv_image_set_pivot(screensaver_img, GOLDEN_FOREST_W / 2, GOLDEN_FOREST_H / 2);
+
+    lv_anim_t anim;
+    lv_anim_init(&anim);
+    lv_anim_set_var(&anim, screensaver_img);
+    lv_anim_set_values(&anim, 256, 280);
+    lv_anim_set_time(&anim, 10000);
+    lv_anim_set_playback_time(&anim, 10000);
+    lv_anim_set_repeat_count(&anim, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_set_exec_cb(&anim, screensaver_zoom_cb);
+    lv_anim_set_path_cb(&anim, lv_anim_path_ease_in_out);
+    lv_anim_start(&anim);
 }
 
 static void enter_active_state(void) {
@@ -127,8 +148,7 @@ lv_obj_t *zmk_display_status_screen() {
 
     screensaver_img = lv_image_create(screensaver_overlay);
     lv_image_set_src(screensaver_img, &golden_forest_img);
-    /* Center the 280px-wide image on the 260px-wide screen */
-    lv_obj_set_pos(screensaver_img, -(GOLDEN_FOREST_W - CUSTOM_SCREEN_WIDTH) / 2, 0);
+    lv_obj_set_pos(screensaver_img, 0, 0);
 
     screensaver_hide();
 
