@@ -24,10 +24,10 @@
 
 static const uint32_t cat_palette[CAT_PALETTE_SIZE] = {
     0x000000, /* 0: background */
-    0x2A3A4A, /* 1: outline    */
-    0x506878, /* 2: body       */
-    0x708898, /* 3: highlight  */
-    0x806070, /* 4: pink accent */
+    0x405868, /* 1: outline    */
+    0x7090A8, /* 2: body       */
+    0xA0C0D8, /* 3: highlight  */
+    0xC08090, /* 4: pink accent */
 };
 
 /*
