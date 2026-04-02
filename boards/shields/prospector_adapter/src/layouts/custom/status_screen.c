@@ -11,7 +11,7 @@
 
 #ifdef CONFIG_PROSPECTOR_CUSTOM_IDLE_FEATURE
 #include "idle_monitor.h"
-#include "sleeping_cat.h"
+#include "golden_forest.h"
 #include <brightness.h>
 
 enum custom_idle_state {
@@ -21,20 +21,9 @@ enum custom_idle_state {
 };
 
 static lv_obj_t *screensaver_overlay;
-static lv_obj_t *screensaver_canvas;
-static lv_obj_t *screensaver_zzz;
+static lv_obj_t *screensaver_img;
 static lv_timer_t *idle_timer;
 static enum custom_idle_state idle_state = CUSTOM_IDLE_ACTIVE;
-static int16_t saver_x = 8;
-static int16_t saver_y = 8;
-static int16_t saver_dx = 1;
-static int16_t saver_dy = 1;
-static int cat_frame_idx;
-static int cat_frame_counter;
-
-/* Two pre-rendered pixel buffers — filled once at init, swapped at runtime */
-static uint8_t cat_buf_0[CAT_RENDER_W * CAT_RENDER_H * 4];
-static uint8_t cat_buf_1[CAT_RENDER_W * CAT_RENDER_H * 4];
 
 #define CUSTOM_SCREEN_WIDTH 260
 #define CUSTOM_SCREEN_HEIGHT 240
@@ -50,120 +39,12 @@ static struct zmk_widget_battery_circles battery_circles_widget;
 static struct zmk_widget_output output_widget;
 
 #ifdef CONFIG_PROSPECTOR_CUSTOM_IDLE_FEATURE
-/*
- * Pre-render a cat frame into a raw ARGB8888 pixel buffer.
- * Called once per frame at init time — never during the timer callback.
- * nRF52840 is little-endian so ARGB8888 word 0xAARRGGBB is stored as [BB,GG,RR,AA].
- */
-static void pre_render_cat_frame(uint8_t *buf, int frame) {
-    /* Fill entire buffer with opaque black */
-    for (int i = 0; i < CAT_RENDER_W * CAT_RENDER_H; i++) {
-        buf[i * 4 + 0] = 0x00; /* B */
-        buf[i * 4 + 1] = 0x00; /* G */
-        buf[i * 4 + 2] = 0x00; /* R */
-        buf[i * 4 + 3] = 0xFF; /* A */
-    }
-
-    /* Stamp each art pixel as a CAT_SCALE × CAT_SCALE block */
-    for (int y = 0; y < CAT_ART_H; y++) {
-        for (int x = 0; x < CAT_ART_W; x++) {
-            uint8_t idx = cat_frames[frame][y][x];
-            if (idx == 0) {
-                continue;
-            }
-            uint32_t c = cat_palette[idx];
-            uint8_t r = (c >> 16) & 0xFF;
-            uint8_t g = (c >> 8) & 0xFF;
-            uint8_t b = c & 0xFF;
-
-            for (int sy = 0; sy < CAT_SCALE; sy++) {
-                for (int sx = 0; sx < CAT_SCALE; sx++) {
-                    int px = x * CAT_SCALE + sx;
-                    int py = y * CAT_SCALE + sy;
-                    int off = (py * CAT_RENDER_W + px) * 4;
-                    buf[off + 0] = b;
-                    buf[off + 1] = g;
-                    buf[off + 2] = r;
-                    buf[off + 3] = 0xFF;
-                }
-            }
-        }
-    }
-}
-
-static void switch_cat_frame(int frame) {
-    uint8_t *buf = (frame == 0) ? cat_buf_0 : cat_buf_1;
-    lv_canvas_set_buffer(screensaver_canvas, buf,
-                         CAT_RENDER_W, CAT_RENDER_H, LV_COLOR_FORMAT_ARGB8888);
-}
-
-static void screensaver_zzz_opa_cb(void *obj, int32_t value) {
-    lv_obj_set_style_text_opa((lv_obj_t *)obj, value, LV_PART_MAIN);
-}
-
-static void screensaver_start_zzz_anim(void) {
-    lv_anim_t anim;
-    lv_anim_init(&anim);
-    lv_anim_set_var(&anim, screensaver_zzz);
-    lv_anim_set_values(&anim, 40, 200);
-    lv_anim_set_time(&anim, 2000);
-    lv_anim_set_playback_time(&anim, 2000);
-    lv_anim_set_repeat_count(&anim, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_set_exec_cb(&anim, screensaver_zzz_opa_cb);
-    lv_anim_set_path_cb(&anim, lv_anim_path_ease_in_out);
-    lv_anim_start(&anim);
-}
-
-static void screensaver_stop_zzz_anim(void) {
-    lv_anim_del(screensaver_zzz, screensaver_zzz_opa_cb);
-}
-
 static void screensaver_hide(void) {
-    screensaver_stop_zzz_anim();
     lv_obj_add_flag(screensaver_overlay, LV_OBJ_FLAG_HIDDEN);
 }
 
 static void screensaver_show(void) {
-    saver_x = 8;
-    saver_y = 16;
-    saver_dx = 1;
-    saver_dy = 1;
-    cat_frame_idx = 0;
-    cat_frame_counter = 0;
-    switch_cat_frame(0);
-    lv_obj_set_pos(screensaver_canvas, saver_x, saver_y);
-    lv_obj_set_pos(screensaver_zzz, saver_x + CAT_RENDER_W - 6, saver_y - 14);
     lv_obj_clear_flag(screensaver_overlay, LV_OBJ_FLAG_HIDDEN);
-    screensaver_start_zzz_anim();
-}
-
-static void screensaver_tick(void) {
-    /* Switch animation frame every 20 ticks (2 s) */
-    cat_frame_counter++;
-    if (cat_frame_counter >= 20) {
-        cat_frame_counter = 0;
-        cat_frame_idx = (cat_frame_idx + 1) % CAT_NUM_FRAMES;
-        switch_cat_frame(cat_frame_idx);
-    }
-
-    int16_t max_x = CUSTOM_SCREEN_WIDTH - CAT_RENDER_W;
-    int16_t max_y = CUSTOM_SCREEN_HEIGHT - CAT_RENDER_H;
-
-    saver_x += saver_dx;
-    saver_y += saver_dy;
-
-    if (saver_x <= 0 || saver_x >= max_x) {
-        saver_dx = -saver_dx;
-        saver_x += saver_dx;
-    }
-
-    if (saver_y <= 0 || saver_y >= max_y) {
-        saver_dy = -saver_dy;
-        saver_y += saver_dy;
-    }
-
-    lv_obj_set_pos(screensaver_canvas, saver_x, saver_y);
-    lv_obj_set_pos(screensaver_zzz, saver_x + CAT_RENDER_W - 6, saver_y - 14);
 }
 
 static void enter_active_state(void) {
@@ -211,7 +92,6 @@ static void custom_idle_timer_cb(lv_timer_t *timer) {
     }
 
     enter_screensaver_state();
-    screensaver_tick();
 }
 #endif
 
@@ -242,20 +122,13 @@ lv_obj_t *zmk_display_status_screen() {
     lv_obj_set_pos(screensaver_overlay, 0, 0);
     lv_obj_set_style_bg_color(screensaver_overlay, lv_color_hex(0x000000), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(screensaver_overlay, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_add_flag(screensaver_overlay, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
     lv_obj_clear_flag(screensaver_overlay, LV_OBJ_FLAG_SCROLLABLE);
 
-    /* Pre-render both animation frames into static buffers (done once) */
-    pre_render_cat_frame(cat_buf_0, 0);
-    pre_render_cat_frame(cat_buf_1, 1);
-
-    screensaver_canvas = lv_canvas_create(screensaver_overlay);
-    lv_canvas_set_buffer(screensaver_canvas, cat_buf_0,
-                         CAT_RENDER_W, CAT_RENDER_H, LV_COLOR_FORMAT_ARGB8888);
-
-    screensaver_zzz = lv_label_create(screensaver_overlay);
-    lv_label_set_text(screensaver_zzz, "zzZ");
-    lv_obj_set_style_text_font(screensaver_zzz, &FG_Medium_20, LV_PART_MAIN);
-    lv_obj_set_style_text_color(screensaver_zzz, lv_color_hex(0x607080), LV_PART_MAIN);
+    screensaver_img = lv_image_create(screensaver_overlay);
+    lv_image_set_src(screensaver_img, &golden_forest_img);
+    /* Center the 280px-wide image on the 260px-wide screen */
+    lv_obj_set_pos(screensaver_img, -(GOLDEN_FOREST_W - CUSTOM_SCREEN_WIDTH) / 2, 0);
 
     screensaver_hide();
 
