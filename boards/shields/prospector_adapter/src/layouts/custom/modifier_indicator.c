@@ -29,7 +29,6 @@ static void set_modifier_color(lv_obj_t *label, bool active) {
     lv_color_t color = active ? lv_color_hex(DISPLAY_COLOR_MOD_ACTIVE)
                                : lv_color_hex(DISPLAY_COLOR_MOD_INACTIVE);
     lv_obj_set_style_text_color(label, color, 0);
-    lv_obj_set_style_text_opa(label, active ? LV_OPA_COVER : LV_OPA_60, LV_PART_MAIN);
 }
 
 static void modifier_indicator_update_cb(struct modifier_indicator_state state) {
@@ -41,7 +40,6 @@ static void modifier_indicator_update_cb(struct modifier_indicator_state state) 
             if (type == MOD_TYPE_SHIFT && state.caps_word) {
                 lv_obj_set_style_text_color(widget->mod_labels[i],
                     lv_color_hex(DISPLAY_COLOR_MOD_CAPS_WORD), 0);
-                lv_obj_set_style_text_opa(widget->mod_labels[i], LV_OPA_COVER, LV_PART_MAIN);
                 continue;
             }
 #endif

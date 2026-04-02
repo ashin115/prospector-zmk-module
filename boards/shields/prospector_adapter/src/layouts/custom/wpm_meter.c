@@ -1,7 +1,6 @@
 #include "wpm_meter.h"
 
 #include <zephyr/kernel.h>
-#include <stdio.h>
 #include <ctype.h>
 #include <zmk/display.h>
 #include <zmk/events/wpm_state_changed.h>
@@ -22,34 +21,8 @@ static int prev_active_bars = 0;
 static int peak_position = 0;
 static int peak_hold_counter = 0;
 static int peak_decay_counter = 0;
-static int last_displayed_wpm = -1;
-static int last_peak_x = -1;
-static int last_trend_dir = 0;
 static const float smoothing_factor_up = 0.3f;
 static const float smoothing_factor_down = 0.05f;
-
-static void peak_x_anim_cb(void *var, int32_t value) {
-    lv_obj_t *obj = (lv_obj_t *)var;
-    lv_obj_set_x(obj, value);
-}
-
-static void animate_peak_x(lv_obj_t *obj, int32_t target_x) {
-    int32_t current_x = lv_obj_get_x(obj);
-    if (current_x == target_x) {
-        return;
-    }
-
-    lv_anim_del(obj, peak_x_anim_cb);
-
-    lv_anim_t anim;
-    lv_anim_init(&anim);
-    lv_anim_set_var(&anim, obj);
-    lv_anim_set_values(&anim, current_x, target_x);
-    lv_anim_set_time(&anim, 110);
-    lv_anim_set_exec_cb(&anim, peak_x_anim_cb);
-    lv_anim_set_path_cb(&anim, lv_anim_path_ease_out);
-    lv_anim_start(&anim);
-}
 
 struct wpm_meter_state {
     uint8_t wpm;
@@ -82,53 +55,15 @@ static void wpm_meter_render(int active_bars) {
             int peak_slot = (peak_position > active_bars + 1) ? (peak_position - 1) : active_bars;
             if (peak_slot >= WPM_BAR_COUNT) peak_slot = WPM_BAR_COUNT - 1;
             int peak_x = start_x + peak_slot * (bar_width + bar_gap) + 2;
-
-            if (peak_x != last_peak_x) {
-                animate_peak_x(widget->peak_indicator, peak_x);
-                last_peak_x = peak_x;
-            }
-
-            lv_obj_set_y(widget->peak_indicator, 0);
+            lv_obj_set_pos(widget->peak_indicator, peak_x, 0);
             lv_obj_clear_flag(widget->peak_indicator, LV_OBJ_FLAG_HIDDEN);
         } else {
             lv_obj_add_flag(widget->peak_indicator, LV_OBJ_FLAG_HIDDEN);
-            last_peak_x = -1;
         }
 
-        int wpm_int = (int)(displayed_wpm + 0.5f);
-        if (wpm_int != last_displayed_wpm) {
-            char wpm_text[4];
-            snprintf(wpm_text, sizeof(wpm_text), "%d", wpm_int);
-            lv_label_set_text(widget->wpm_label, wpm_text);
-
-            int trend_dir = 0;
-            if (last_displayed_wpm >= 0) {
-                if (wpm_int > last_displayed_wpm) {
-                    trend_dir = 1;
-                } else if (wpm_int < last_displayed_wpm) {
-                    trend_dir = -1;
-                }
-            }
-
-            if (trend_dir != last_trend_dir) {
-                if (trend_dir > 0) {
-                    lv_label_set_text(widget->trend_label, "+");
-                    lv_obj_set_style_text_color(widget->trend_label,
-                        lv_color_hex(DISPLAY_COLOR_WPM_TREND_UP), LV_PART_MAIN);
-                } else if (trend_dir < 0) {
-                    lv_label_set_text(widget->trend_label, "-");
-                    lv_obj_set_style_text_color(widget->trend_label,
-                        lv_color_hex(DISPLAY_COLOR_WPM_TREND_DOWN), LV_PART_MAIN);
-                } else {
-                    lv_label_set_text(widget->trend_label, "=");
-                    lv_obj_set_style_text_color(widget->trend_label,
-                        lv_color_hex(DISPLAY_COLOR_WPM_TREND_STEADY), LV_PART_MAIN);
-                }
-                last_trend_dir = trend_dir;
-            }
-
-            last_displayed_wpm = wpm_int;
-        }
+        char wpm_text[4];
+        snprintf(wpm_text, sizeof(wpm_text), "%d", (int)(displayed_wpm + 0.5f));
+        lv_label_set_text(widget->wpm_label, wpm_text);
     }
 }
 
@@ -261,16 +196,6 @@ int zmk_widget_wpm_meter_init(struct zmk_widget_wpm_meter *widget, lv_obj_t *par
     lv_obj_set_style_pad_hor(widget->wpm_label, 6, LV_PART_MAIN);
     lv_obj_set_style_pad_ver(widget->wpm_label, 4, LV_PART_MAIN);
     lv_obj_align(widget->wpm_label, LV_ALIGN_TOP_LEFT, -7, -9);
-
-    widget->trend_label = lv_label_create(widget->obj);
-    lv_label_set_text(widget->trend_label, "=");
-    lv_obj_set_style_text_font(widget->trend_label, &FG_Medium_21, LV_PART_MAIN);
-    lv_obj_set_style_text_color(widget->trend_label, lv_color_hex(DISPLAY_COLOR_WPM_TREND_STEADY), LV_PART_MAIN);
-    lv_obj_set_style_bg_color(widget->trend_label, lv_color_hex(DISPLAY_COLOR_SCREEN_BG), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(widget->trend_label, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_pad_hor(widget->trend_label, 3, LV_PART_MAIN);
-    lv_obj_set_style_pad_ver(widget->trend_label, 1, LV_PART_MAIN);
-    lv_obj_align(widget->trend_label, LV_ALIGN_TOP_LEFT, 63, -5);
 
     widget->layer_label = lv_label_create(widget->obj);
     lv_label_set_text(widget->layer_label, "");

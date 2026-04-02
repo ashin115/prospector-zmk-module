@@ -9,29 +9,6 @@
 
 static sys_slist_t widgets = SYS_SLIST_STATIC_INIT(&widgets);
 
-static void dot_opa_anim_cb(void *var, int32_t value) {
-    lv_obj_t *dot = (lv_obj_t *)var;
-    lv_obj_set_style_bg_opa(dot, value, LV_PART_MAIN);
-}
-
-static void animate_dot_opa(lv_obj_t *dot, lv_opa_t target_opa) {
-    lv_opa_t current_opa = lv_obj_get_style_bg_opa(dot, LV_PART_MAIN);
-    if (current_opa == target_opa) {
-        return;
-    }
-
-    lv_anim_del(dot, dot_opa_anim_cb);
-
-    lv_anim_t anim;
-    lv_anim_init(&anim);
-    lv_anim_set_var(&anim, dot);
-    lv_anim_set_values(&anim, current_opa, target_opa);
-    lv_anim_set_time(&anim, 130);
-    lv_anim_set_exec_cb(&anim, dot_opa_anim_cb);
-    lv_anim_set_path_cb(&anim, lv_anim_path_ease_out);
-    lv_anim_start(&anim);
-}
-
 struct layer_display_state {
     uint8_t index;
 };
@@ -40,12 +17,10 @@ static void layer_display_update_cb(struct layer_display_state state) {
     struct zmk_widget_layer_display *widget;
     SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) {
         for (int i = 0; i < LAYER_DOT_COUNT; i++) {
-            bool active = (i == state.index);
             lv_color_t color = (i == state.index)
                 ? lv_color_hex(DISPLAY_COLOR_LAYER_DOT_ACTIVE)
                 : lv_color_hex(DISPLAY_COLOR_LAYER_DOT_INACTIVE);
             lv_obj_set_style_bg_color(widget->dots[i], color, LV_PART_MAIN);
-            animate_dot_opa(widget->dots[i], active ? LV_OPA_COVER : LV_OPA_40);
         }
     }
 }
@@ -75,7 +50,7 @@ int zmk_widget_layer_display_init(struct zmk_widget_layer_display *widget, lv_ob
         lv_obj_set_size(widget->dots[i], dot_width, 6);
         lv_obj_set_pos(widget->dots[i], i * (dot_width + dot_gap), 0);
         lv_obj_set_style_bg_color(widget->dots[i], lv_color_hex(DISPLAY_COLOR_LAYER_DOT_INACTIVE), LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(widget->dots[i], LV_OPA_40, LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(widget->dots[i], LV_OPA_COVER, LV_PART_MAIN);
         lv_obj_set_style_border_width(widget->dots[i], 0, LV_PART_MAIN);
         lv_obj_set_style_radius(widget->dots[i], 2, LV_PART_MAIN);
         lv_obj_set_style_pad_all(widget->dots[i], 0, LV_PART_MAIN);
