@@ -12,6 +12,7 @@ struct zmk_widget_wpm_meter {
     lv_obj_t *bars[WPM_BAR_COUNT];
     lv_obj_t *peak_indicator;
     lv_obj_t *wpm_label;
+    lv_obj_t *trend_label;
     lv_obj_t *layer_label;
 };
 
