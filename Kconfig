@@ -22,6 +22,11 @@ config PROSPECTOR_STATUS_SCREEN_OPERATOR
     help
         Technical and information dense layout
 
+config PROSPECTOR_STATUS_SCREEN_CUSTOM
+    bool "Custom layout"
+    help
+        Custom mixed-widget layout
+
 endchoice
 
 config PROSPECTOR_ROTATE_DISPLAY_180
@@ -81,3 +86,28 @@ config PROSPECTOR_LAYER_NAME_UPPERCASE
     default y
     help
       When enabled, layer names will be converted to uppercase for display.
+
+config PROSPECTOR_CUSTOM_IDLE_FEATURE
+    bool "Enable custom layout idle dim and screensaver"
+    default y
+    depends on PROSPECTOR_STATUS_SCREEN_CUSTOM
+    help
+      Dim display after inactivity and show a lightweight screensaver.
+
+config PROSPECTOR_CUSTOM_IDLE_DIM_TIMEOUT_SEC
+    int "Custom layout dim timeout (seconds)"
+    default 30
+    range 5 3600
+    depends on PROSPECTOR_CUSTOM_IDLE_FEATURE
+
+config PROSPECTOR_CUSTOM_IDLE_SCREENSAVER_TIMEOUT_SEC
+    int "Custom layout screensaver timeout (seconds)"
+    default 120
+    range 10 7200
+    depends on PROSPECTOR_CUSTOM_IDLE_FEATURE
+
+config PROSPECTOR_CUSTOM_IDLE_DIM_BRIGHTNESS
+    int "Custom layout dim brightness (%)"
+    default 20
+    range 1 100
+    depends on PROSPECTOR_CUSTOM_IDLE_FEATURE

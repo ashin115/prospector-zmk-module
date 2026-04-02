@@ -1,0 +1,28 @@
+if PROSPECTOR_STATUS_SCREEN_CUSTOM
+
+config ZMK_DISPLAY_STATUS_SCREEN_CUSTOM
+    select LV_USE_LABEL
+    select LV_USE_FLEX
+    select LV_USE_ARC
+    select LV_USE_BAR
+    select LV_COLOR_SCREEN_TRANSP
+
+config ZMK_WPM
+    default y
+
+config LV_Z_MEM_POOL_SIZE
+    default 20000
+
+config PROSPECTOR_CUSTOM_IDLE_FEATURE
+    default y
+
+config PROSPECTOR_CUSTOM_IDLE_DIM_TIMEOUT_SEC
+    default 30
+
+config PROSPECTOR_CUSTOM_IDLE_SCREENSAVER_TIMEOUT_SEC
+    default 120
+
+config PROSPECTOR_CUSTOM_IDLE_DIM_BRIGHTNESS
+    default 20
+
+endif
